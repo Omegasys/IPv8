@@ -10,3 +10,4 @@ Slaac
 NAT functionality 
 Unicast/multicast/anycast
 Address compression 
+New ip address for every connection
