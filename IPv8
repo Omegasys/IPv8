@@ -2,6 +2,10 @@ use base64::{encode, decode};
 use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 use rand::Rng;
+use std::net::{TcpListener, TcpStream};
+use std::io::{Write, Read};
+use std::thread;
+
 // Define the IPv8 address as 16 groups of 8 base64 digits
 #[derive(Debug, Clone)]
 struct IPv8Address {
@@ -134,4 +138,55 @@ fn main() {
     // Simulate compression
     let compressed_address = device1.ip_address.compress();
     println!("Compressed Address: {}", compressed_address);
+}
+// IPv8 Address Struct
+#[derive(Debug, Clone)]
+struct IPv8Address {
+    groups: [String; 16], // 16 groups of 8 Base64 characters
+}
+impl IPv8Address {
+    /// Generates a new random IPv8 address
+    fn new() -> Self {
+        let mut rng = rand::thread_rng();
+        let groups: [String; 16] = std::array::from_fn(|_| {
+            let mut bytes = [0u8; 6]; // 6 bytes → 8 Base64 characters
+            rng.fill(&mut bytes);
+            encode(&bytes) // Convert to Base64
+        });
+
+        Self { groups }
+    }
+    /// Converts the IPv8 address to a human-readable string
+    fn to_string(&self) -> String {
+        self.groups.join(":")
+    }
+}
+/// Handles an incoming connection and assigns a new IPv8 address
+fn handle_client(mut stream: TcpStream) {
+    // Generate a new IPv8 address for each connection
+    let ipv8_address = IPv8Address::new();
+    let address_string = ipv8_address.to_string();
+    println!("Assigned new IPv8 Address: {}", address_string);
+    // Send the new IPv8 address to the client
+    if let Err(e) = stream.write_all(address_string.as_bytes()) {
+        eprintln!("Failed to send IPv8 address: {}", e);
+    }
+}
+fn main() -> std::io::Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:8080")?;
+    println!("IPv8 Server running on 127.0.0.1:8080");
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                thread::spawn(|| {
+                    handle_client(stream);
+                });
+            }
+            Err(e) => {
+                eprintln!("Connection failed: {}", e);
+            }
+        }
+    }
+
+    Ok(())
 }
