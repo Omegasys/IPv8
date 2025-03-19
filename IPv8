@@ -1,185 +1,175 @@
 use base64::{encode, decode};
-use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 use rand::Rng;
+use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
 use std::io::{Write, Read};
 use std::thread;
 
-// Define the IPv8 address as 16 groups of 8 base64 digits
 #[derive(Debug, Clone)]
 struct IPv8Address {
-    address: String, // Store the address as a base64 string
+    address: String,
 }
+
 impl IPv8Address {
-    // Generate a new IPv8 address (16 groups of 8 base64 digits)
     fn new() -> Self {
         let mut rng = rand::thread_rng();
         let mut address = String::new();
         for _ in 0..16 {
-            // Generate a group of 8 random base64 characters
             let group: String = (0..8)
                 .map(|_| rng.gen_range(0..64) as u8)
                 .map(|byte| base64::alphabet::BASE64_STANDARD[byte as usize] as char)
                 .collect();
             address.push_str(&group);
-            address.push(':'); // Separator between groups
+            address.push(':');
         }
-        address.pop(); // Remove the last colon
+        address.pop(); // Remove trailing colon
         IPv8Address { address }
     }
-    // Validate the address by checking if it has the correct format
     fn is_valid(&self) -> bool {
-        self.address.split(':').count() == 16 && self.address.chars().all(|c| c.is_ascii_alphanumeric() || c == ':')
-    }
-    // Handle address compression (::) by shortening consecutive zero groups
-    fn compress(&self) -> String {
-        let mut parts: Vec<&str> = self.address.split(':').collect();
-        if let Some(zero_start) = parts.iter().position(|&x| x == "00000000") {
-            parts.remove(zero_start);
-            // Replace multiple consecutive zero groups with ::
-            parts.insert(zero_start, "::");
-        }
-        parts.join(":")
+        self.address.split(':').count() == 16
     }
 }
-// Define the different address types (Unicast, Multicast, Anycast)
-#[derive(Debug)]
-enum AddressType {
-    Unicast,
-    Multicast,
-    Anycast,
-}
-// Define a simple structure to simulate routing and address resolution
+
 #[derive(Debug)]
 struct Router {
-    routes: HashMap<String, String>, // Maps IP addresses to next hop routers
+    routes: HashMap<String, String>,
 }
+
 impl Router {
-    // A very basic routing method
+    fn new() -> Self {
+        Router {
+            routes: HashMap::new(),
+        }
+    }
+
+    fn add_route(&mut self, destination: &str, next_hop: &str) {
+        self.routes.insert(destination.to_string(), next_hop.to_string());
+    }
+
     fn resolve(&self, destination: &str) -> Option<&String> {
         self.routes.get(destination)
     }
 }
-// A simplified encryption function to simulate SHA-256 and encryption
-fn encrypt_data(data: &str) -> String {
+
+fn encrypt_data_a(data: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
-    let hash = hasher.finalize();
-    // Simulate another encryption step, e.g., base64 encoding of the hashed data
-    encode(hash)
+    encode(hasher.finalize())
 }
-// Implement a simple NAT functionality
+
+fn encrypt_data_b(data: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(data.as_bytes().iter().rev().collect::<Vec<_>>());
+    encode(hasher.finalize())
+}
+
+fn decrypt_data_a(data: &str) -> String {
+    let decoded = decode(data).expect("Failed to decode data");
+    String::from_utf8(decoded).unwrap_or_else(|_| "Invalid Data".to_string())
+}
+
+fn decrypt_data_b(data: &str) -> String {
+    let decoded = decode(data).expect("Failed to decode data");
+    String::from_utf8(decoded.into_iter().rev().collect()).unwrap_or_else(|_| "Invalid Data".to_string())
+}
+
 fn nat_translate(source_ip: &str, destination_ip: &str) -> (String, String) {
-    // Simulate the translation of source and destination IP addresses
     let translated_source = format!("{}:translated", source_ip);
     let translated_destination = format!("{}:translated", destination_ip);
     (translated_source, translated_destination)
 }
-// Define a struct to simulate Stateless Address Autoconfiguration (SLAAC)
-#[derive(Debug)]
-struct SLAACConfig {
-    ip_address: IPv8Address,
-    is_enabled: bool,
-}
-impl SLAACConfig {
-    fn new() -> Self {
-        SLAACConfig {
-            ip_address: IPv8Address::new(),
-            is_enabled: true, // Could be set manually or by external sources
-        }
-    }
-    fn set_ip_address_manually(&mut self, address: IPv8Address) {
-        self.ip_address = address;
-        self.is_enabled = false;
-    }
-    fn enable_slaac(&mut self) {
-        self.is_enabled = true;
-    }
-}
-// A simple struct to simulate a Device with IPv8 capabilities
-#[derive(Debug)]
-struct Device {
-    ip_address: IPv8Address,
-    slaac_config: SLAACConfig,
-}
-impl Device {
-    fn new() -> Self {
-        Device {
-            ip_address: IPv8Address::new(),
-            slaac_config: SLAACConfig::new(),
-        }
-    }
-    fn enable_ipsec(&self) {
-        println!("IPsec enabled for device {}", self.ip_address.address);
-    }
-    fn send_encrypted_data(&self, data: &str) {
-        let encrypted_data = encrypt_data(data);
-        println!("Encrypted data sent: {}", encrypted_data);
-    }
-}
-// Main function to simulate a basic IPv8 network
-fn main() {
-    let device1 = Device::new();
-    let device2 = Device::new();
-    println!("Device 1 IP: {}", device1.ip_address.address);
-    println!("Device 2 IP: {}", device2.ip_address.address);
-    device1.enable_ipsec();
-    device1.send_encrypted_data("Hello, world!");
-    // NAT translation
-    let (translated_src, translated_dst) = nat_translate(&device1.ip_address.address, &device2.ip_address.address);
-    println!("NAT translated source: {}", translated_src);
-    println!("NAT translated destination: {}", translated_dst);
-    // SLAAC Configuration
-    let mut slaac_device = Device::new();
-    println!("SLAAC Device IP: {}", slaac_device.slaac_config.ip_address.address);
-    slaac_device.slaac_config.set_ip_address_manually(IPv8Address::new());
-    println!("SLAAC Device IP after manual config: {}", slaac_device.slaac_config.ip_address.address);
-    // Simulate compression
-    let compressed_address = device1.ip_address.compress();
-    println!("Compressed Address: {}", compressed_address);
-}
-// IPv8 Address Struct
-#[derive(Debug, Clone)]
-struct IPv8Address {
-    groups: [String; 16], // 16 groups of 8 Base64 characters
-}
-impl IPv8Address {
-    /// Generates a new random IPv8 address
-    fn new() -> Self {
-        let mut rng = rand::thread_rng();
-        let groups: [String; 16] = std::array::from_fn(|_| {
-            let mut bytes = [0u8; 6]; // 6 bytes → 8 Base64 characters
-            rng.fill(&mut bytes);
-            encode(&bytes) // Convert to Base64
-        });
 
-        Self { groups }
-    }
-    /// Converts the IPv8 address to a human-readable string
-    fn to_string(&self) -> String {
-        self.groups.join(":")
-    }
+fn send_data(mut stream: TcpStream, data: &str) {
+    stream.write_all(data.as_bytes()).unwrap();
 }
-/// Handles an incoming connection and assigns a new IPv8 address
-fn handle_client(mut stream: TcpStream) {
-    // Generate a new IPv8 address for each connection
-    let ipv8_address = IPv8Address::new();
-    let address_string = ipv8_address.to_string();
-    println!("Assigned new IPv8 Address: {}", address_string);
-    // Send the new IPv8 address to the client
-    if let Err(e) = stream.write_all(address_string.as_bytes()) {
-        eprintln!("Failed to send IPv8 address: {}", e);
-    }
+
+fn receive_data(mut stream: TcpStream) -> String {
+    let mut buffer = [0; 1024];
+    let size = stream.read(&mut buffer).unwrap();
+    String::from_utf8_lossy(&buffer[..size]).to_string()
 }
-fn main() -> std::io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:8080")?;
+
+fn route_data(source: &IPv8Address, destination: &IPv8Address, routers: &Vec<Router>) {
+    let mut rng = rand::thread_rng();
+
+    println!("Routing data from {} to {}", source.address, destination.address);
+
+    // Encrypt using method A
+    let encrypted_data = encrypt_data_a("Hello, world!");
+
+    // Multi-hop forwarding (forward direction)
+    let mut current = source.address.clone();
+    for _ in 0..rng.gen_range(2..5) {
+        if let Some(router) = routers.get(rng.gen_range(0..routers.len())) {
+            if let Some(next_hop) = router.resolve(&current) {
+                println!("Forward hop through: {}", next_hop);
+                current = next_hop.clone();
+            }
+        }
+    }
+
+    // Final delivery at destination
+    println!("Data delivered to {}: {}", destination.address, encrypted_data);
+
+    // Encrypt using method B for reverse direction
+    let encrypted_response = encrypt_data_b("ACK");
+
+    // Multi-hop forwarding (return direction)
+    let mut current = destination.address.clone();
+    for _ in 0..rng.gen_range(2..5) {
+        if let Some(router) = routers.get(rng.gen_range(0..routers.len())) {
+            if let Some(next_hop) = router.resolve(&current) {
+                println!("Return hop through: {}", next_hop);
+                current = next_hop.clone();
+            }
+        }
+    }
+
+    // Decrypt using method A at source
+    let decrypted_response = decrypt_data_a(&encrypted_response);
+    println!("Decrypted response at source: {}", decrypted_response);
+}
+
+fn handle_client(mut stream: TcpStream, routers: Vec<Router>) {
+    let source = IPv8Address::new();
+    let destination = IPv8Address::new();
+
+    println!("New connection from: {}", source.address);
+
+    route_data(&source, &destination, &routers);
+    let data = receive_data(stream.try_clone().unwrap());
+    println!("Received: {}", data);
+
+    // Encrypt with method B at endpoint
+    let encrypted_data = encrypt_data_b(&data);
+    send_data(stream, &encrypted_data);
+}
+
+fn main() {
+    let router_count = 5;
+    let mut routers = Vec::new();
+
+    // Create routers with random routing tables
+    for _ in 0..router_count {
+        let mut router = Router::new();
+        for _ in 0..5 {
+            let src = IPv8Address::new().address;
+            let dst = IPv8Address::new().address;
+            router.add_route(&src, &dst);
+        }
+        routers.push(router);
+    }
+
+    let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
     println!("IPv8 Server running on 127.0.0.1:8080");
+
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                thread::spawn(|| {
-                    handle_client(stream);
+                let routers_clone = routers.clone();
+                thread::spawn(move || {
+                    handle_client(stream, routers_clone);
                 });
             }
             Err(e) => {
@@ -187,6 +177,4 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-
-    Ok(())
 }
