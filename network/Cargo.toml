@@ -1,0 +1,10 @@
+[package]
+name = "ipv8-network"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ipv8-core = { path = "../core" }
+ipv8-crypto = { path = "../crypto" }
+rand = "0.8"
+tokio = { version = "1", features = ["full"] }
