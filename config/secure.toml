@@ -1,0 +1,21 @@
+[network]
+mode = "secure"
+max_hops = 5
+enable_nat = false
+
+[security]
+encryption = "aes-256-gcm"
+hashing = "sha256"
+ipsec = true
+perfect_forward_secrecy = true
+
+[routing]
+dynamic_paths = true
+directional_routing = true
+path_randomization = true
+
+[transport]
+websocket = true
+tls = true
+proxy = true
+tor = true
