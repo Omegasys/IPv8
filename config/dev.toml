@@ -1,0 +1,18 @@
+[network]
+mode = "development"
+max_hops = 1
+enable_nat = true
+
+[security]
+encryption = "none"
+hashing = "sha256"
+
+[routing]
+dynamic_paths = false
+directional_routing = false
+
+[transport]
+websocket = false
+tls = false
+proxy = false
+tor = false
