@@ -1,0 +1,19 @@
+[network]
+mode = "standard"
+max_hops = 2
+enable_nat = false
+
+[security]
+encryption = "aes-256-gcm"
+hashing = "sha256"
+ipsec = true
+
+[routing]
+dynamic_paths = true
+directional_routing = true
+
+[transport]
+websocket = true
+tls = true
+proxy = false
+tor = false
