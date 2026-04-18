@@ -1,0 +1,12 @@
+[package]
+name = "ipv8-crypto"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sha2 = "0.10"
+rand = "0.8"
+aes-gcm = "0.10"
+aead = "0.5"
+x25519-dalek = "2.0"
+base64 = "0.21"
